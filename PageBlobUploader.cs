@@ -36,7 +36,7 @@ namespace azureStorageAccount
 
             long totalUploaded = 0;
             long vhdOffset = 0;
-            int offsetToTransfer = -1;
+            int offsetToTransfer = -1; //xw32: Based on the code below, this var indicates the starting index of a list of consecutive ranges (4Mb each) that are not all zeros.
 
             while (vhdOffset < fileSize)
             {

@@ -19,36 +19,45 @@ namespace azureStorageAccount
             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
 
             // Create container or get
-            string containerName = "mycontainer";//"vhdblobs";
+            string containerName = "mycontainer";//"containerwith1source";//"mycontainer";//"vhdblobs";
 
             //CloudBlobContainer container = CreateContainer(blobClient, "mycontainer");
             CloudBlobContainer container = GetContainerReference(blobClient, containerName);
 
             //PageBlobUploader.UploadVHDToCloud("Oracle-Linux-6-Generalized.128mb.variant.vhd", 128*1024*1024, blobClient, containerName, "Oracle-Linux-6-Generalized.128mb.variant.vhd");
-            string blobName = "Oracle-Linux-6-Generalized.128mb.vhd";// "Oracle -Linux-6-Generalized.10GB.vhd";
+            string blobName = "destsparsepageblob1gb.vhd";// "Oracle -Linux-6-Generalized.10GB.vhd";
+
             CloudPageBlob pageBlob = container.GetPageBlobReference(blobName);
-            IEnumerable<PageRange> pageRanges = pageBlob.GetPageRanges();
-            //PageBlobDownloader.DownloadVHDFromCloud(blobClient, containerName, blobName);
+
+            //IEnumerable<PageRange> pageRanges = pageBlob.GetPageRanges();
+            /*
+            PageBlobDownloader.DownloadVHDFromCloud(blobClient, containerName, blobName);
+            */
             /* 
-        CloudPageBlob sourcePageBlob = container.GetPageBlobReference("blobwithrandomchar4mb.vhd");
-        long size = GetCloudBlobSize(sourcePageBlob);
-        byte[] blobData = new byte[size];
-            sourcePageBlob.DownloadToByteArray(blobData, 0);
+            CloudPageBlob sourcePageBlob = container.GetPageBlobReference("blobwithrandomchar4mb.vhd");
+            long size = GetCloudBlobSize(sourcePageBlob);
+            byte[] blobData = new byte[size];
+                sourcePageBlob.DownloadToByteArray(blobData, 0);
 
-        CloudPageBlob destinationPageBlob = container.GetPageBlobReference("blobwithrandomchar4mb2.vhd");
+            CloudPageBlob destinationPageBlob = container.GetPageBlobReference("blobwithrandomchar4mb2.vhd");
 
-        //bool isSame = VerifySourceBlobAndDestinationBlobIdentical(sourcePageBlob, destinationPageBlob);
+            //bool isSame = VerifySourceBlobAndDestinationBlobIdentical(sourcePageBlob, destinationPageBlob);
 
-        */
-        bool isSame = VerifySourceBlobsAndDestinationBlobsIdentical(
-            container, 
-            new List<string>() { "Oracle-Linux-6-Generalized.128mb.vhd" },
-            container, 
-            new List<string>() { "Oracle-Linux-6-Generalized.128mb.vhd" });
+            */
+            bool isSame = VerifySourceBlobsAndDestinationBlobsIdentical(
+                container, 
+                new List<string>() { "Oracle-Linux-6-Generalized.128mb.vhd" },
+                container, 
+                new List<string>() { "Oracle-Linux-6-Generalized.128mb.copy.vhd" });
 
 
-            //PrintBlobSasUri(blobClient, containerName, "Oracle-Linux-6-Generalized.10GB.vhd");
-            //PrintBlobSasUri(blobClient, "mycontainer", "blobwithrandomchar4mbvariant.vhd");
+
+            PrintBlobSasUri(blobClient, containerName, "Oracle-Linux-6-Generalized.128mb.vhd");
+            PrintBlobSasUri(blobClient, containerName, "Oracle-Linux-6-Generalized.128mb.copy.vhd");
+            //PrintBlobSasUri(blobClient, containerName, "destdensepageblob4mb.vhd");
+
+
+
 
 
             Console.WriteLine("Reached the bottom.");
@@ -84,25 +93,13 @@ namespace azureStorageAccount
 
         private static bool VerifySourceBlobAndDestinationBlobIdentical(CloudPageBlob sourceBlob, CloudPageBlob destinationBlob)
         {
-            List<PageRange> sourcePageRanges = sourceBlob.GetPageRanges().ToList();
-            List<PageRange> destinationPageRanges = destinationBlob.GetPageRanges().ToList();
-            int numSourcePageRanges = sourcePageRanges.Count();
-            int numDestinationPageRanges = destinationPageRanges.Count();
-            if (numSourcePageRanges != numDestinationPageRanges)
+            /*
+            bool isPageRangeIdentical = ComparePageRange(sourceBlob, destinationBlob);
+            if (!isPageRangeIdentical)
             {
                 return false;
             }
-            sourcePageRanges = sourcePageRanges.OrderBy(pageRange => pageRange.StartOffset).ToList();
-            destinationPageRanges = destinationPageRanges.OrderBy(pageRange => pageRange.StartOffset).ToList();
-            for (int i = 0; i < numSourcePageRanges; ++i)
-            {
-                bool isPageRangeIdentical = ComparePageRange(sourceBlob, sourcePageRanges[i],
-                    destinationBlob, destinationPageRanges[i]);
-                if (!isPageRangeIdentical)
-                {
-                    return false;
-                }
-            }
+            */
             bool isBlobContentIdentical = CompareBlobContent(sourceBlob, destinationBlob);
             if (!isBlobContentIdentical)
             {
@@ -111,13 +108,25 @@ namespace azureStorageAccount
             return true;
         }
 
-        private static bool ComparePageRange(CloudPageBlob pageBlob0, PageRange pageRange0,
-            CloudPageBlob pageBlob1, PageRange pageRange1)
+        private static bool ComparePageRange(CloudPageBlob pageBlob0, CloudPageBlob pageBlob1)
         {
-            if (pageRange0.StartOffset != pageRange1.StartOffset ||
-                pageRange0.EndOffset != pageRange1.EndOffset)
+            List<PageRange> pageRanges0 = pageBlob0.GetPageRanges().ToList();
+            List<PageRange> pageRanges1 = pageBlob1.GetPageRanges().ToList();
+            int numPageRanges0 = pageRanges0.Count();
+            int numPageRanges1 = pageRanges1.Count();
+            if (numPageRanges0 != numPageRanges1)
             {
                 return false;
+            }
+            pageRanges0 = pageRanges0.OrderBy(pageRange => pageRange.StartOffset).ToList();
+            pageRanges1 = pageRanges1.OrderBy(pageRange => pageRange.StartOffset).ToList();
+            for (int i = 0; i < numPageRanges0; ++i)
+            {
+                if (pageRanges0[i].StartOffset != pageRanges1[i].StartOffset ||
+                    pageRanges0[i].EndOffset != pageRanges1[i].EndOffset)
+                {
+                    return false;
+                }
             }
             return true;
         }
@@ -125,7 +134,7 @@ namespace azureStorageAccount
         private static bool CompareBlobContent(CloudBlob blob0, CloudBlob blob1)
         {
             const int bytesToRead = sizeof(Int64);
-            const int oneMegabyteInBytes = 1024*1024;
+            const int oneMegabyteInBytes = 1024 * 1024;
             long blobLength0 = GetCloudBlobSize(blob0);
             long blobLength1 = GetCloudBlobSize(blob1);
             if (blobLength0 != blobLength1)
@@ -134,8 +143,7 @@ namespace azureStorageAccount
             }
 
             // Need to read in chunks in order to avoid insufficient memory issue.
-            long maxChunkSize = 64*oneMegabyteInBytes;
-            int numChunks = (int) Math.Ceiling((double) blobLength0/maxChunkSize);
+            long maxChunkSize = 64 * oneMegabyteInBytes;
             byte[] bytes0 = new byte[bytesToRead];
             byte[] bytes1 = new byte[bytesToRead];
             long totalBytesRead = 0;
@@ -151,7 +159,7 @@ namespace azureStorageAccount
                     blob1.DownloadRangeToStream(blobStream1, totalBytesRead, bytesToBeRead);
                     blobStream0.Seek(0, SeekOrigin.Begin);
                     blobStream1.Seek(0, SeekOrigin.Begin);
-                    int iterations = (int) Math.Ceiling((double) blobStream0.Length/bytesToRead);
+                    int iterations = (int)Math.Ceiling((double)blobStream0.Length / bytesToRead);
                     for (int i = 0; i < iterations; i++)
                     {
                         blobStream0.Read(bytes0, 0, bytesToRead);
